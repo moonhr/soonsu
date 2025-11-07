@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['ytdlp_from_csv_win.py'],
+    ['ytdlp_from_csv.py'],
     pathex=[],
     binaries=[('/Users/moonhyerim/soonsu/yt-dlp', '.'), ('/opt/homebrew/bin/ffmpeg', '.')],
     datas=[],

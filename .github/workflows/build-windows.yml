@@ -3,7 +3,7 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
     tags:
       - "v*"
 
@@ -21,6 +21,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify Python
+        shell: pwsh
+        run: |
+          python --version
+          python -c "import sys; print(sys.executable)"
+          pip --version
+
       - name: Install PyInstaller
         run: |
           python -m pip install --upgrade pip
@@ -36,10 +43,10 @@ jobs:
       - name: Build EXE
         shell: pwsh
         run: |
-          py -m PyInstaller --onefile --windowed --name SoonsuDownloader `
+          python -m PyInstaller --onefile --windowed --name SoonsuDownloader `
             --add-binary "yt-dlp.exe;." `
             --add-binary "ffmpeg.exe;." `
-            ytdlp_from_csv_win.py
+            ytdlp_from_csv.py
 
       - name: Zip artifact
         run: powershell Compress-Archive -Path dist/SoonsuDownloader.exe -DestinationPath dist/SoonsuDownloader-win.zip
