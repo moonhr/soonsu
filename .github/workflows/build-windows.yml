@@ -2,7 +2,7 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
   push:
-    branches: [main] # 필요에 맞게 변경
+    branches: [main]
 
 jobs:
   build:
@@ -16,6 +16,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install PyInstaller
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
@@ -30,7 +31,7 @@ jobs:
       - name: Build EXE
         shell: pwsh
         run: |
-          py -m PyInstaller `
+          python -m PyInstaller `
             --onefile `
             --windowed `
             --name SoonsuDownloader `
