@@ -28,10 +28,14 @@ jobs:
           tar -xf ffmpeg.zip -C . --strip-components=2 */bin/ffmpeg.exe
 
       - name: Build EXE
+        shell: pwsh
         run: |
-          py -m PyInstaller --onefile --windowed --name SoonsuDownloader ^
-            --add-binary "yt-dlp.exe;." ^
-            --add-binary "ffmpeg.exe;." ^
+          py -m PyInstaller `
+            --onefile `
+            --windowed `
+            --name SoonsuDownloader `
+            --add-binary "yt-dlp.exe;." `
+            --add-binary "ffmpeg.exe;." `
             ytdlp_from_csv_win.py
 
       - name: Upload artifact
