@@ -399,6 +399,9 @@ if __name__ == "__main__":
             for name in ["chrome", "edge", "safari", "none"]:
                 ttk.Radiobutton(browser_frame, text=name, value=name, variable=browser_var).pack(side="left", padx=6)
 
+            # 중지 이벤트 (Start/Stop 간 공유)
+            stop_event = threading.Event()
+
             # 미리보기 테이블
             preview = ttk.Treeview(app, columns=("c1","c2","c3","c4","c5"), show="headings", height=8)
             for i, title in enumerate(["col1","col2","col3","col4","col5"], start=1):
@@ -419,10 +422,37 @@ if __name__ == "__main__":
                 log.insert("end", text + "\n")
                 log.see("end")
 
-            # 실행 버튼
+            # 실행/중지/초기화 버튼과 핸들러들
             btn_frame = tk.Frame(app)
             btn_frame.pack(fill="x", padx=12, pady=(0, 10))
+
+            def stop_task():
+                if not stop_event.is_set():
+                    stop_event.set()
+                    append_log("[info] 중지 요청을 보냈습니다. 이미 실행 중인 항목은 순차 종료됩니다.")
+                else:
+                    append_log("[info] 이미 중지 요청 상태입니다.")
+
+            def reset_inputs():
+                # 입력 필드 초기화
+                csv_path_var.set("")
+                # 매핑 CSV는 기본값이 존재하면 그대로 두고, 없으면 빈 값
+                if default_map.exists():
+                    map_path_var.set(str(default_map))
+                else:
+                    map_path_var.set("")
+                save_path_var.set(str(BASE_DIR))
+                browser_var.set(USE_BROWSER_COOKIES)
+                # 미리보기/로그 초기화
+                for item in preview.get_children():
+                    preview.delete(item)
+                log.delete("1.0", "end")
+                append_log("[info] 입력과 미리보기를 초기화했습니다.")
+
             def run_task():
+                # 이전 중지 상태 초기화
+                stop_event.clear()
+                append_log("[info] 작업을 시작합니다. (중지: 버튼으로 가능)")
                 csv_path = csv_path_var.get().strip()
                 if not csv_path:
                     messagebox.showwarning("경고", "작업 CSV 파일을 선택하세요.")
@@ -458,23 +488,38 @@ if __name__ == "__main__":
                         occ = {}
                         with ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
                             futures = []
+                            submitted = 0
                             for url, user_id, ymd in jobs:
+                                if stop_event.is_set():
+                                    append_log("[info] 중지 요청 감지. 남은 작업은 제출하지 않습니다.")
+                                    break
                                 display = id_name.get(user_id, "undefine")
                                 key = (user_id, ymd)
                                 occ[key] = occ.get(key, 0) + 1
                                 out_dir = build_output_dir(save_dir_path, user_id, display, ymd, occ[key])
                                 futures.append(executor.submit(run_yt_dlp, url, out_dir, ytdlp_bin))
+                                submitted += 1
                             for fut in as_completed(futures):
                                 rc = fut.result()
                                 if rc == 0:
                                     success += 1
-                        append_log(f"완료: {success}/{len(jobs)} 성공")
-                        messagebox.showinfo("완료", f"완료: {success}/{len(jobs)} 성공")
+                                if stop_event.is_set():
+                                    # 이미 제출된 작업은 자연 종료를 기다리되, 추가 행동은 최소화
+                                    pass
+                        append_log(f"[info] 제출된 작업: {submitted}건")
+                        if stop_event.is_set():
+                            append_log(f"중지됨: {success}/{submitted} 성공 (제출 {submitted}건 기준)")
+                            messagebox.showinfo("중지됨", f"중지됨: {success}/{submitted} 성공")
+                        else:
+                            append_log(f"완료: {success}/{len(jobs)} 성공")
+                            messagebox.showinfo("완료", f"완료: {success}/{len(jobs)} 성공")
                     except Exception as e:
                         append_log(f"오류: {e}")
                         messagebox.showerror("오류", str(e))
                 threading.Thread(target=worker, daemon=True).start()
             ttk.Button(btn_frame, text="시작", command=run_task).pack(side="left")
+            ttk.Button(btn_frame, text="중지", command=stop_task).pack(side="left", padx=(8, 0))
+            ttk.Button(btn_frame, text="입력 초기화", command=reset_inputs).pack(side="left", padx=(8, 0))
 
             app.mainloop()
         except Exception:
