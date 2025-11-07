@@ -197,6 +197,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
         "-N", "8",
         "--write-description",
         "--write-info-json",
+        "--write-all-thumbnails",
+        "--extractor-args", "instagram:carousel_items=1",
     ]
     if USE_BROWSER_COOKIES and USE_BROWSER_COOKIES.lower() != "none":
         cmd += ["--cookies-from-browser", USE_BROWSER_COOKIES]
@@ -218,6 +220,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
             "--write-thumbnail",
             "--write-description",
             "--write-info-json",
+            "--write-all-thumbnails",
+            "--extractor-args", "instagram:carousel_items=1",
             "--convert-thumbnails", "jpg",
         ]
         if USE_BROWSER_COOKIES and USE_BROWSER_COOKIES.lower() != "none":
