@@ -113,6 +113,29 @@ def normalize_date(raw: str) -> str:
 
     return datetime.now().strftime("%y.%m.%d")
 
+def rename_description_to_txt(out_dir: Path) -> None:
+    """
+    yt-dlp의 --write-description은 .description 확장자로 저장한다.
+    사용성 향상을 위해 동일 파일을 .txt로 바꿔준다.
+    예: 'Title [ID].description' -> 'Title [ID].txt'
+    """
+    try:
+        for p in out_dir.glob("*.description"):
+            target = p.with_suffix(".txt")
+            # 기존에 txt가 있으면 덮어쓰지 않도록 삭제
+            if target.exists():
+                try:
+                    target.unlink()
+                except Exception:
+                    pass
+            try:
+                p.rename(target)
+            except Exception:
+                # 파일 잠금 등으로 실패해도 전체 동작은 계속
+                pass
+    except Exception:
+        pass
+
 def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -124,6 +147,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
         "--retries", "10",
         "--fragment-retries", "10",
         "-N", "8",
+        "--write-description",
+        "--write-info-json",
     ]
     if USE_BROWSER_COOKIES and USE_BROWSER_COOKIES.lower() != "none":
         cmd += ["--cookies-from-browser", USE_BROWSER_COOKIES]
@@ -133,6 +158,9 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
     output = proc.stdout or ""
     print(f"[yt-dlp] {url}\n" + output)
 
+    # 캡션(.description) 파일을 .txt로 정리
+    rename_description_to_txt(out_dir)
+
     if proc.returncode != 0 and "No video formats found" in output:
         img_cmd = [
             ytdlp_bin,
@@ -140,6 +168,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
             "-o", "%(title)s [%(id)s].%(ext)s",
             "--skip-download",
             "--write-thumbnail",
+            "--write-description",
+            "--write-info-json",
             "--convert-thumbnails", "jpg",
         ]
         if USE_BROWSER_COOKIES and USE_BROWSER_COOKIES.lower() != "none":
@@ -147,6 +177,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
         img_cmd.append(url)
         img_proc = subprocess.run(img_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         print("[yt-dlp:image-fallback]\n" + (img_proc.stdout or ""))
+        # 폴백 케이스에서도 캡션 정리
+        rename_description_to_txt(out_dir)
         return img_proc.returncode
 
     return proc.returncode
