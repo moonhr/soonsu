@@ -303,31 +303,36 @@ C:\Downloads\
 - 일부 게시물은 사진만 있는 경우가 있습니다
 - 자동으로 JPG 이미지로 저장됩니다
 
+# 0) 프로젝트 이동 + venv 활성
 
-# 0) 프로젝트 이동 + venv 활성화
 cd "/Users/moonhyerim/soonsu"
 [ -d .venv ] || python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip pyinstaller
 
 # 1) yt-dlp(맥용) 준비
+
 [ -f yt-dlp ] || curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos -o yt-dlp
 chmod +x yt-dlp
 xattr -d com.apple.quarantine yt-dlp 2>/dev/null || true
 
 # 2) ffmpeg 경로 확보(없으면 설치)
+
 brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
 FF=$(which ffmpeg)
 echo "ffmpeg => $FF"
 
 # 3) 이전 빌드 정리
+
 rm -rf build dist SoonsuDownloader.spec
 
 # 4) 빌드(onendir + windowed 권장)
+
 python3 -m PyInstaller --onedir --windowed --name SoonsuDownloader \
-  --add-binary "$(pwd)/yt-dlp:." \
+ --add-binary "$(pwd)/yt-dlp:." \
   --add-binary "$FF:." \
-  ytdlp_from_csv_win.py
+ ytdlp_from_csv_win.py
 
 # 5) 실행 확인
+
 open dist/SoonsuDownloader.app
