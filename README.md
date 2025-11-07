@@ -328,10 +328,10 @@ rm -rf build dist SoonsuDownloader.spec
 
 # 4) 빌드(onendir + windowed 권장)
 
-python3 -m PyInstaller --onedir --windowed --name SoonsuDownloader \
- --add-binary "$(pwd)/yt-dlp:." \
+python3 -m PyInstaller --onedir --windowed --name SoonsuDownloader \                                                                                            ✔ ╱ 7s ╱ soonsu  ╱ 15:20:51 
+  --add-binary "$(pwd)/yt-dlp:." \
   --add-binary "$FF:." \
- ytdlp_from_csv_win.py
+  ytdlp_from_csv.py
 
 # 5) 실행 확인
 

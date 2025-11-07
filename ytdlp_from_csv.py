@@ -483,6 +483,7 @@ if __name__ == "__main__":
                         jobs = parse_csv_and_jobs(Path(csv_path))
                         append_log(f"총 {len(jobs)}건 처리 시작...")
                         append_log(f"저장 위치: {save_dir_path}")
+                        total = len(jobs)
                         ytdlp_bin = resolve_ytdlp_bin()
                         # 선택된 매핑 CSV 사용
                         map_path_str = map_path_var.get().strip()
@@ -492,8 +493,9 @@ if __name__ == "__main__":
                         occ = {}
                         with ThreadPoolExecutor(max_workers=CONCURRENCY) as executor:
                             futures = []
+                            future_meta = {}
                             submitted = 0
-                            for url, user_id, ymd in jobs:
+                            for idx, (url, user_id, ymd) in enumerate(jobs, start=1):
                                 if stop_event.is_set():
                                     append_log("[info] 중지 요청 감지. 남은 작업은 제출하지 않습니다.")
                                     break
@@ -501,12 +503,20 @@ if __name__ == "__main__":
                                 key = (user_id, ymd)
                                 occ[key] = occ.get(key, 0) + 1
                                 out_dir = build_output_dir(save_dir_path, user_id, display, ymd, occ[key])
-                                futures.append(executor.submit(run_yt_dlp, url, out_dir, ytdlp_bin))
+                                fut = executor.submit(run_yt_dlp, url, out_dir, ytdlp_bin)
+                                futures.append(fut)
+                                future_meta[fut] = (idx, user_id, ymd)
                                 submitted += 1
+                                append_log(f"[제출 {idx}/{total}] {user_id} {ymd}")
+                            done = 0
                             for fut in as_completed(futures):
                                 rc = fut.result()
+                                done += 1
+                                idx, uid, ymd = future_meta.get(fut, (done, '-', '-'))
                                 if rc == 0:
                                     success += 1
+                                status = "성공" if rc == 0 else f"실패(rc={rc})"
+                                append_log(f"[진행 {done}/{submitted}] #{idx} {uid} {ymd} {status}")
                                 if stop_event.is_set():
                                     # 이미 제출된 작업은 자연 종료를 기다리되, 추가 행동은 최소화
                                     pass

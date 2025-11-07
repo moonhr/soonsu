@@ -49,12 +49,12 @@ jobs:
             ytdlp_from_csv.py
 
       - name: Zip artifact
-        run: powershell Compress-Archive -Path dist/SoonsuDownloader.exe -DestinationPath dist/SoonsuDownloader-win.zip
+        run: powershell Compress-Archive -Path dist/SoonsuDownloader.exe -DestinationPath dist/SoonsuDownloader.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/SoonsuDownloader-win.zip
+            dist/SoonsuDownloader.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
