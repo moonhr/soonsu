@@ -1,0 +1,41 @@
+name: Build Windows EXE
+on:
+  workflow_dispatch:
+  push:
+    branches: [main] # 필요에 맞게 변경
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+
+      - name: Download yt-dlp.exe & ffmpeg.exe
+        shell: pwsh
+        run: |
+          curl -L -o yt-dlp.exe https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe
+          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          tar -xf ffmpeg.zip -C . --strip-components=2 */bin/ffmpeg.exe
+
+      - name: Build EXE
+        run: |
+          py -m PyInstaller --onefile --windowed --name SoonsuDownloader ^
+            --add-binary "yt-dlp.exe;." ^
+            --add-binary "ffmpeg.exe;." ^
+            ytdlp_from_csv_win.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SoonsuDownloader-win
+          path: dist/SoonsuDownloader.exe
