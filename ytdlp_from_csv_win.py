@@ -113,28 +113,65 @@ def normalize_date(raw: str) -> str:
 
     return datetime.now().strftime("%y.%m.%d")
 
-def rename_description_to_txt(out_dir: Path) -> None:
+
+# Helper import for JSON handling
+import json
+
+def ensure_caption_txt(out_dir: Path) -> None:
     """
-    yt-dlp의 --write-description은 .description 확장자로 저장한다.
-    사용성 향상을 위해 동일 파일을 .txt로 바꿔준다.
-    예: 'Title [ID].description' -> 'Title [ID].txt'
+    게시글 캡션을 txt로 보장한다.
+    1) yt-dlp가 생성한 *.description을 *.txt로 바꾼다.
+    2) *.description이 없거나 비어 있을 경우, *.info.json의 'description' 값을 읽어
+       동일한 베이스 파일명으로 *.txt를 생성한다.
     """
+    # 1) 먼저 .description -> .txt 변환
     try:
         for p in out_dir.glob("*.description"):
             target = p.with_suffix(".txt")
-            # 기존에 txt가 있으면 덮어쓰지 않도록 삭제
-            if target.exists():
-                try:
+            try:
+                if target.exists():
                     target.unlink()
-                except Exception:
-                    pass
+            except Exception:
+                pass
             try:
                 p.rename(target)
             except Exception:
-                # 파일 잠금 등으로 실패해도 전체 동작은 계속
                 pass
     except Exception:
         pass
+
+    # 2) info.json 기반으로 보강
+    try:
+        for jp in out_dir.glob("*.info.json"):
+            try:
+                with open(jp, "r", encoding="utf-8") as jf:
+                    meta = json.load(jf)
+            except Exception:
+                continue
+            desc = (meta.get("description") or "").strip()
+            if not desc:
+                continue
+            txt_path = jp.with_suffix(".txt")  # same basename *.txt
+            # 이미 txt가 있으면 건너뛰되, 비어 있으면 덮어쓰기
+            need_write = True
+            if txt_path.exists():
+                try:
+                    if txt_path.stat().st_size > 0:
+                        need_write = False
+                except Exception:
+                    pass
+            if need_write:
+                try:
+                    with open(txt_path, "w", encoding="utf-8") as tf:
+                        tf.write(desc)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+def rename_description_to_txt(out_dir: Path) -> None:
+    # 유지 호환: 기존 이름을 호출하는 곳이 있어도 동작하도록 ensure_caption_txt로 위임
+    ensure_caption_txt(out_dir)
 
 def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -158,8 +195,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
     output = proc.stdout or ""
     print(f"[yt-dlp] {url}\n" + output)
 
-    # 캡션(.description) 파일을 .txt로 정리
-    rename_description_to_txt(out_dir)
+    # 캡션 파일(.txt) 보장 (.description → .txt 변환 + info.json 보강)
+    ensure_caption_txt(out_dir)
 
     if proc.returncode != 0 and "No video formats found" in output:
         img_cmd = [
@@ -177,8 +214,8 @@ def run_yt_dlp(url: str, out_dir: Path, ytdlp_bin: str) -> int:
         img_cmd.append(url)
         img_proc = subprocess.run(img_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         print("[yt-dlp:image-fallback]\n" + (img_proc.stdout or ""))
-        # 폴백 케이스에서도 캡션 정리
-        rename_description_to_txt(out_dir)
+        # 폴백 케이스에서도 캡션 보장
+        ensure_caption_txt(out_dir)
         return img_proc.returncode
 
     return proc.returncode
