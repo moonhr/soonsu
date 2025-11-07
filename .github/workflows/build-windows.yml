@@ -1,12 +1,16 @@
 name: Build Windows EXE
+
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    tags:
+      - "v*"
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -16,7 +20,6 @@ jobs:
           python-version: "3.12"
 
       - name: Install PyInstaller
-        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
@@ -31,16 +34,18 @@ jobs:
       - name: Build EXE
         shell: pwsh
         run: |
-          python -m PyInstaller `
-            --onefile `
-            --windowed `
-            --name SoonsuDownloader `
+          py -m PyInstaller --onefile --windowed --name SoonsuDownloader `
             --add-binary "yt-dlp.exe;." `
             --add-binary "ffmpeg.exe;." `
             ytdlp_from_csv_win.py
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Zip artifact
+        run: powershell Compress-Archive -Path dist/SoonsuDownloader.exe -DestinationPath dist/SoonsuDownloader-win.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: SoonsuDownloader-win
-          path: dist/SoonsuDownloader.exe
+          files: |
+            dist/SoonsuDownloader-win.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
